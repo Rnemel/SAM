@@ -1,0 +1,13 @@
+:root {
+  --color-bg: #ffffff;
+  --color-text: #0d1b1e;
+  --color-primary: #1e7f43;
+  --color-primary-contrast: #ffffff;
+  --color-muted: #6c7a73;
+  --radius: 10px;
+  --shadow-sm: 0 4px 10px rgba(30,127,67,0.08);
+  --shadow-md: 0 10px 24px rgba(30,127,67,0.12);
+  --motion-fast: 180ms;
+  --motion-normal: 320ms;
+  --motion-slow: 640ms;
+}
