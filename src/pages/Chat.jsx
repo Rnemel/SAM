@@ -13,6 +13,25 @@ export default function Chat() {
   const [status, setStatus] = useState('')
   const [typing, setTyping] = useState(false)
   const [user, setUser] = useState(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [connStatus, setConnStatus] = useState('')
+  const [connError, setConnError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    async function initEmbed() {
+      try {
+        const mod = await import('https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js')
+        const Chatbot = mod.default || mod.Chatbot || window.Chatbot
+        if (!cancelled && Chatbot && !window.__flowise_inited) {
+          Chatbot.init({ chatflowid: '6d898019-f1bb-4c57-b28b-4f52ca40530e', apiHost: 'https://cloud.flowiseai.com' })
+          window.__flowise_inited = true
+        }
+      } catch {}
+    }
+    initEmbed()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     const u = localStorage.getItem('chat_user')
@@ -52,7 +71,7 @@ export default function Chat() {
     return { category, fees, samFee, total }
   }
 
-  function send(custom) {
+  async function send(custom) {
     const txt = (custom ?? input).trim()
     if (!txt || typing) return
     const newMsgs = [...messages, { from: 'user', text: txt, time: new Date().toLocaleTimeString('ar-SA') }]
@@ -61,6 +80,28 @@ export default function Chat() {
     setInput('')
     setStatus('')
     setTyping(true)
+    try {
+      const history = newMsgs.map(m => ({ role: m.from === 'user' ? 'userMessage' : 'apiMessage', content: m.text }))
+      const res = await fetch('/api/flowise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: txt, history, streaming: false })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const reply = data?.text || data?.response || data?.message || ''
+        if (reply) {
+          const withAssistant = [...newMsgs, { from: 'assistant', text: reply, time: new Date().toLocaleTimeString('ar-SA') }]
+          setMessages(withAssistant)
+          try { localStorage.setItem('chat_history', JSON.stringify(withAssistant)) } catch {}
+          setTyping(false)
+          return
+        }
+      }
+      setConnError(`HTTP ${res.status}`)
+    } catch (e) {
+      setConnError(String(e?.message || 'Network Error'))
+    }
     setTimeout(() => {
       const r = analyze(txt)
       setResult(r)
@@ -100,8 +141,47 @@ export default function Chat() {
     navigate('/pay')
   }
 
+  async function testConnection() {
+    setConnStatus('جاري الاختبار...')
+    setConnError('')
+    try {
+      const res = await fetch('/api/flowise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: 'ping', history: [], streaming: false })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const preview = (data?.text || data?.response || data?.message || '').slice(0, 120)
+        setConnStatus(preview ? `متصل — ${preview}…` : 'متصل')
+      } else {
+        setConnError(`HTTP ${res.status}`)
+        setConnStatus('فشل الاتصال')
+      }
+    } catch (e) {
+      setConnError(String(e?.message || 'Network Error'))
+      setConnStatus('فشل الاتصال')
+    }
+  }
+
   return (
     <div className="grid">
+      <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+        <div className="hero-sub">تشخيص الاتصال بالروبوت</div>
+        <Button variant="ghost" onClick={() => setDebugOpen(!debugOpen)}>{debugOpen ? 'إخفاء' : 'إظهار'}</Button>
+      </div>
+      {debugOpen && (
+        <div className="card" style={{ display: 'grid', gap: 8 }}>
+          <div className="grid" style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+            <div className="hero-sub">الحالة</div>
+            <div style={{ fontWeight: 700, color: connStatus.startsWith('متصل') ? 'var(--color-primary)' : 'crimson' }}>{connStatus || 'غير معروف'}</div>
+          </div>
+          {connError && <div className="card" style={{ borderStyle: 'dashed' }}>{connError}</div>}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="primary" onClick={testConnection}>اختبار الاتصال</Button>
+          </div>
+        </div>
+      )}
       <div className="card" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center' }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e6f3ea', color: 'var(--color-primary)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
           {(user?.name || String(user?.nationalId || '')).slice(0, 1) || 'م'}
