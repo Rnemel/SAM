@@ -7,6 +7,14 @@ export default function Fees() {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const [data, setData] = useState(null)
+  function getSamFee() {
+    let v = 0
+    try { v = Number(localStorage.getItem('sam_fee') || '0') } catch {}
+    if (v === 5.99) return v
+    v = 5.99
+    try { localStorage.setItem('sam_fee', String(v)) } catch {}
+    return v
+  }
 
   useEffect(() => {
     const u = localStorage.getItem('chat_user')
@@ -25,7 +33,7 @@ export default function Fees() {
       { type: 'تأخير تجديد إقامة', authority: 'الجوازات', reason: 'انتهت الإقامة ويجب التجديد', amount: 100 },
       { type: 'تحديث بيانات', authority: 'أحوال مدنية', reason: 'تصحيح بيانات أساسية', amount: 0 },
     ]
-    const samFee = 23
+    const samFee = getSamFee()
     const totalFees = fees.reduce((s, f) => s + f.amount, 0)
     const total = totalFees + samFee
     setData({ fees, samFee, total })

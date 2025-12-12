@@ -7,6 +7,14 @@ export default function Pay() {
   const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [status, setStatus] = useState('')
+  function getSamFee() {
+    let v = 0
+    try { v = Number(localStorage.getItem('sam_fee') || '0') } catch {}
+    if (v === 5.99) return v
+    v = 5.99
+    try { localStorage.setItem('sam_fee', String(v)) } catch {}
+    return v
+  }
 
   useEffect(() => {
     const u = localStorage.getItem('chat_user')
@@ -21,7 +29,7 @@ export default function Pay() {
       { type: 'مخالفة سرعة', authority: 'المرور', amount: 300 },
       { type: 'تأخير تجديد إقامة', authority: 'الجوازات', amount: 100 },
     ]
-    const samFee = 23
+    const samFee = getSamFee()
     const total = fees.reduce((s, f) => s + f.amount, 0) + samFee
     setData({ category: 'ملخص دفع', fees, samFee, total })
   }, [navigate])
@@ -29,6 +37,20 @@ export default function Pay() {
   function confirm() {
     setStatus('تم استلام طلبك — جاري تحويله إلى القسم المختص')
     try { localStorage.setItem('payment_status', 'confirmed') } catch {}
+    try {
+      const orders = JSON.parse(localStorage.getItem('orders') || '[]')
+      const lastMessage = localStorage.getItem('last_message') || ''
+      const now = new Date().toLocaleTimeString('ar-SA')
+      const order = {
+        id: Date.now(),
+        text: lastMessage || (data?.category || 'طلب خدمة'),
+        time: now,
+        total: data?.total,
+        stage: 0
+      }
+      orders.push(order)
+      localStorage.setItem('orders', JSON.stringify(orders))
+    } catch {}
     try { window.dispatchEvent(new CustomEvent('sam-payment-confirmed')) } catch {}
     navigate('/routed')
   }

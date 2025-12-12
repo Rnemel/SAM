@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Pricing from './pages/Pricing'
 import Chat from './pages/Chat'
 import Fees from './pages/Fees'
+import Orders from './pages/Orders'
 import Pay from './pages/Pay'
 import Routed from './pages/Routed'
 import NotFound from './pages/NotFound'
@@ -24,6 +25,7 @@ export default function Router() {
         <Route path="/login" element={<Login />} />
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/fees" element={<Fees />} />
+        <Route path="/orders" element={<Orders />} />
         <Route path="/pay" element={<Pay />} />
         <Route path="/routed" element={<Routed />} />
         <Route path="/chat" element={<Chat />} />

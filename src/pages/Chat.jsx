@@ -1,12 +1,15 @@
 import Card from '../components/Card'
 import Button from '../components/Button'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 export default function Chat() {
   const navigate = useNavigate()
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('lang') || 'ar' } catch { return 'ar' }
+  })
   const [messages, setMessages] = useState([
-    { from: 'assistant', text: 'مرحبًا بك في سَم. اكتب طلبك الحكومي أو مشكلتك لنرشدك.', time: new Date().toLocaleTimeString('ar-SA') }
+    { from: 'assistant', text: 'مرحبًا بك في سَم، المساعد الرقمي الرسمي. صِف معاملتك الحكومية لنوجّهك بدقة خطوة بخطوة.', time: new Date().toLocaleTimeString('ar-SA') }
   ])
   const [input, setInput] = useState('')
   const [result, setResult] = useState(null)
@@ -16,6 +19,17 @@ export default function Chat() {
   const [debugOpen, setDebugOpen] = useState(false)
   const [connStatus, setConnStatus] = useState('')
   const [connError, setConnError] = useState('')
+  const bodyRef = useRef(null)
+  
+
+  function getSamFee() {
+    let v = 0
+    try { v = Number(localStorage.getItem('sam_fee') || '0') } catch {}
+    if (v === 5.99) return v
+    v = 5.99
+    try { localStorage.setItem('sam_fee', String(v)) } catch {}
+    return v
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -45,6 +59,9 @@ export default function Chat() {
       const lm = localStorage.getItem('last_message') || ''
       if (lm) setInput(lm)
     } catch {}
+    function onLang() { try { setLang(localStorage.getItem('lang') || 'ar') } catch {} }
+    window.addEventListener('sam-lang', onLang)
+    return () => window.removeEventListener('sam-lang', onLang)
   }, [navigate])
 
   function analyze(text) {
@@ -66,7 +83,7 @@ export default function Chat() {
         { type: 'تحديث بيانات', authority: 'أحوال مدنية', amount: 0 },
       ]
     }
-    const samFee = 23
+    const samFee = getSamFee()
     const total = fees.reduce((s, f) => s + f.amount, 0) + samFee
     return { category, fees, samFee, total }
   }
@@ -116,6 +133,13 @@ export default function Chat() {
     }, 500)
   }
 
+  useEffect(() => {
+    try {
+      const el = bodyRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    } catch {}
+  }, [messages, typing])
+
   function quick(text) { send(text) }
 
   function clearChat() {
@@ -140,6 +164,8 @@ export default function Chat() {
   function pay() {
     navigate('/pay')
   }
+
+  
 
   async function testConnection() {
     setConnStatus('جاري الاختبار...')
@@ -166,56 +192,62 @@ export default function Chat() {
 
   return (
     <div className="grid">
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-        <div className="hero-sub">تشخيص الاتصال بالروبوت</div>
-        <Button variant="ghost" onClick={() => setDebugOpen(!debugOpen)}>{debugOpen ? 'إخفاء' : 'إظهار'}</Button>
-      </div>
-      {debugOpen && (
-        <div className="card" style={{ display: 'grid', gap: 8 }}>
-          <div className="grid" style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-            <div className="hero-sub">الحالة</div>
-            <div style={{ fontWeight: 700, color: connStatus.startsWith('متصل') ? 'var(--color-primary)' : 'crimson' }}>{connStatus || 'غير معروف'}</div>
+      <Card title={lang === 'ar' ? 'الشات الذكي' : 'Smart Chat'}>
+        <div className="chat-box">
+          <div className="chat-header">
+            <div className="avatar avatar-sam">{lang === 'ar' ? 'س' : 'S'}</div>
+            <div>
+              <div className="chat-title">{lang === 'ar' ? 'المساعد سَم' : 'SAM Assistant'}</div>
+              <div className="hero-sub">{lang === 'ar' ? 'أكتب طلبك وسَنرشدك خطوة بخطوة.' : 'Describe your request and we will guide you.'}</div>
+              <div className="hero-sub" style={{ fontWeight: 700 }}>{(lang === 'ar' ? 'سَم — ' : 'SAM — ') + (user?.name || (lang === 'ar' ? 'مستخدم' : 'User'))}</div>
+            </div>
+            <div className="status">{(lang === 'ar' ? 'سَم — ' : 'SAM — ') + (user?.name || (lang === 'ar' ? 'مستخدم' : 'User'))}</div>
           </div>
-          {connError && <div className="card" style={{ borderStyle: 'dashed' }}>{connError}</div>}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="primary" onClick={testConnection}>اختبار الاتصال</Button>
-          </div>
-        </div>
-      )}
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center' }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#e6f3ea', color: 'var(--color-primary)', display: 'grid', placeItems: 'center', fontWeight: 800 }}>
-          {(user?.name || String(user?.nationalId || '')).slice(0, 1) || 'م'}
-        </div>
-        <div>
-          <div style={{ fontWeight: 700 }}>{user?.name || 'مستخدم'}</div>
-          <div className="hero-sub">{user?.nationalId || ''}</div>
-        </div>
-        <Button variant="ghost" onClick={logout}>تسجيل الخروج</Button>
-      </div>
-      <Card title="الشات الذكي">
-        <div className="grid">
-          <div className="chat">
+          <div className="chat-body" ref={bodyRef}>
             {messages.map((m, i) => (
-              <div key={i} className={`bubble ${m.from === 'user' ? 'bubble-user' : 'bubble-assistant'} section`} style={{ animationDelay: `${0.05 * i}s` }}>
-                <div>{m.text}</div>
-                {m.time && <div className="hero-sub" style={{ marginTop: 4 }}>{m.time}</div>}
-              </div>
+              m.from === 'assistant' ? (
+                <div key={i} className="bubble-row section" style={{ animationDelay: `${0.05 * i}s` }}>
+                  <div className="avatar avatar-sam">{lang === 'ar' ? 'س' : 'S'}</div>
+                  <div className="bubble bubble-assistant">
+                    <div className="bubble-title">{lang === 'ar' ? 'سَم' : 'SAM'}</div>
+                    <div>{m.text}</div>
+                    {m.time && <div className="hero-sub" style={{ marginTop: 4 }}>{m.time}</div>}
+                  </div>
+                </div>
+              ) : (
+                <div key={i} className="bubble-row section" style={{ animationDelay: `${0.05 * i}s` }}>
+                  <div className="avatar avatar-user">{(user?.name || String(user?.nationalId || '')).slice(0, 1) || (lang === 'ar' ? 'م' : 'U')}</div>
+                  <div className="bubble bubble-user">
+                    <div>{m.text}</div>
+                    {m.time && <div className="hero-sub" style={{ marginTop: 4 }}>{m.time}</div>}
+                  </div>
+                </div>
+              )
             ))}
             {typing && (
-              <div className="bubble bubble-assistant section" style={{ animationDelay: '0.05s' }}>
-                <div>جاري التحليل...</div>
+              <div className="bubble-row section" style={{ animationDelay: '0.05s' }}>
+                <div className="avatar avatar-sam">{lang === 'ar' ? 'س' : 'S'}</div>
+                <div className="bubble bubble-assistant">
+                  <div className="bubble-title">{lang === 'ar' ? 'سَم' : 'SAM'}</div>
+                  <div>{lang === 'ar' ? 'جاري التحليل...' : 'Analyzing...'}</div>
+                </div>
               </div>
             )}
           </div>
-          <div className="chat-input">
-            <input className="card" placeholder="اكتب طلبك أو مشكلتك هنا" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send() }} />
-            <Button variant="primary" onClick={() => send()}>إرسال</Button>
-          </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="secondary" onClick={() => quick('أرغب في تجديد الإقامة')}>تجديد إقامة</Button>
-            <Button variant="secondary" onClick={() => quick('لدي مخالفة مرورية وأريد السداد')}>تسديد مخالفة</Button>
-            <Button variant="secondary" onClick={() => quick('أحتاج تحديث بيانات الأحوال')}>تحديث بيانات</Button>
-            <Button variant="ghost" onClick={clearChat}>مسح المحادثة</Button>
+          <div className="chat-footer">
+            <div className="compose">
+              <span className="compose-icon">{
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 17v3a1 1 0 0 0 1.4.9l3.5-1.6a2 2 0 0 1 .7-.2h8.4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M8 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              }</span>
+              <input className="compose-input" placeholder="اكتب طلبك أو مشكلتك هنا" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send() }} />
+              <Button variant="primary" onClick={() => send()}>{lang === 'ar' ? 'إرسال' : 'Send'}</Button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Button variant="secondary" onClick={() => quick('أرغب في تجديد الإقامة')}>{lang === 'ar' ? 'تجديد إقامة' : 'Residence Renewal'}</Button>
+              <Button variant="secondary" onClick={() => quick('لدي مخالفة مرورية وأريد السداد')}>{lang === 'ar' ? 'تسديد مخالفة' : 'Pay Violation'}</Button>
+              <Button variant="secondary" onClick={() => quick('أحتاج تحديث بيانات الأحوال')}>{lang === 'ar' ? 'تحديث بيانات' : 'Update Data'}</Button>
+              <Button variant="ghost" onClick={clearChat}>{lang === 'ar' ? 'مسح المحادثة' : 'Clear Chat'}</Button>
+            </div>
           </div>
         </div>
       </Card>

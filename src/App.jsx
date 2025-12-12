@@ -7,15 +7,20 @@ import Footer from './components/Footer'
 export default function App() {
   const { pathname } = useLocation()
   const [confirmed, setConfirmed] = useState(false)
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem('lang') || 'ar' } catch { return 'ar' }
+  })
   useEffect(() => {
     try { setConfirmed(localStorage.getItem('payment_status') === 'confirmed') } catch {}
     function onConfirmed() { setConfirmed(true) }
     window.addEventListener('sam-payment-confirmed', onConfirmed)
+    function onLang() { try { setLang(localStorage.getItem('lang') || 'ar') } catch {} }
+    window.addEventListener('sam-lang', onLang)
     return () => window.removeEventListener('sam-payment-confirmed', onConfirmed)
   }, [])
 
   const showSteps = ['/chat', '/fees', '/pay', '/routed'].includes(pathname)
-  const steps = ['التحليل', 'الرسوم', 'الدفع', 'تأكيد']
+  const steps = lang === 'ar' ? ['التحليل', 'الرسوم', 'الدفع', 'تأكيد'] : ['Analysis', 'Fees', 'Payment', 'Confirm']
   const pathToIndex = { '/chat': 0, '/fees': 1, '/pay': confirmed ? 3 : 2, '/routed': 3 }
   const current = pathToIndex[pathname] ?? 0
 
@@ -23,7 +28,7 @@ export default function App() {
     <div className="app-shell">
       <Header />
       <div className="notice">
-        <div className="container notice-inner">واجهة UI فقط — جاهزة للربط الرسمي لاحقًا</div>
+        <div className="container notice-inner">{lang === 'ar' ? 'واجهة UI فقط — جاهزة للربط الرسمي لاحقًا' : 'UI only — ready for official integration later'}</div>
       </div>
       <main className="container">
         {showSteps && (
