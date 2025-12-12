@@ -14,19 +14,16 @@ export default function Footer() {
   return (
     <footer className="footer view">
       <div className="container footer-inner">
-        <div className="footer-block">
-          <div className="footer-title"><img src="/sam-logo.png" alt="شعار" className="footer-logo" /></div>
-          <div className="footer-text">{lang === 'ar' ? 'مساعد رقمي موثوق لإتمام معاملاتك الحكومية بواجهة عربية رسمية.' : 'A trusted digital assistant for completing government transactions.'}</div>
-        </div>
-        <div className="footer-block">
-          <div className="footer-title">{lang === 'ar' ? 'روابط' : 'Links'}</div>
-          <div className="footer-text">{lang === 'ar' ? 'الرئيسية · أسعار الخدمات · الرسوم · الشات' : 'Home · Pricing · Fees · Chat'}</div>
-        </div>
-        <div className="footer-block">
-          <div className="footer-title">{lang === 'ar' ? 'تنبيه' : 'Notice'}</div>
-          <div className="footer-text">{lang === 'ar' ? 'واجهة تجريبية (UI) معدّة للتكامل والربط لاحقًا.' : 'Experimental UI, prepared for official integration later.'}</div>
-        </div>
+        <div className="footer-title">{
+          (() => {
+            const base = import.meta.env.BASE_URL || '/'
+            return (
+              <img src={`${base}logo.png`} alt={lang === 'ar' ? 'شعار' : 'Logo'} className="footer-logo" onError={(e) => { e.currentTarget.src = `${base}logo.svg` }} />
+            )
+          })()
+        }</div>
+        <div className="footer-text">{lang === 'ar' ? 'مصمم لمسابقة هاكاثون أبشر — Absher Hackathon' : 'Made for Absher Hackathon'}</div>
       </div>
     </footer>
   )
-} 
+}

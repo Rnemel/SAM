@@ -27,9 +27,6 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header />
-      <div className="notice">
-        <div className="container notice-inner">{lang === 'ar' ? 'واجهة UI فقط — جاهزة للربط الرسمي لاحقًا' : 'UI only — ready for official integration later'}</div>
-      </div>
       <main className="container">
         {showSteps && (
           <div className="steps view" style={{ margin: '20px 0 8px' }}>

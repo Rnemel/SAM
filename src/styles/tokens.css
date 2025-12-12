@@ -1,12 +1,24 @@
 :root {
   --color-bg: #ffffff;
   --color-text: #0d1b1e;
-  --color-primary: #1e7f43;
+  --color-primary: #45492D;
   --color-primary-contrast: #ffffff;
   --color-muted: #6c7a73;
+  --color-accent-yellow: #F7CD45;
+  --color-accent-orange: #ED7B30;
+  --color-accent-green: #27AE60;
+  --color-olive-1: #4b5a2b;
+  --color-olive-2: #3a4823;
+  --color-olive-3: #2a3119;
+  --color-olive-overlay: #243017;
+  --color-accent-gold: #C9A227;
+  --color-danger: #C62828;
+  --color-danger-weak: #FDECEA;
   --radius: 10px;
-  --shadow-sm: 0 4px 10px rgba(30,127,67,0.08);
-  --shadow-md: 0 10px 24px rgba(30,127,67,0.12);
+  --shadow-sm: 0 4px 10px rgba(69,73,45,0.12);
+  --shadow-md: 0 10px 24px rgba(69,73,45,0.18);
+  --shadow-primary-weak: 0 8px 20px rgba(69,73,45,0.25);
+  --shadow-primary-strong: 0 10px 26px rgba(69,73,45,0.35);
   --motion-fast: 180ms;
   --motion-normal: 320ms;
   --motion-slow: 640ms;
