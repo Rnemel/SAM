@@ -38,7 +38,24 @@ export default function Chat() {
         const mod = await import('https://cdn.jsdelivr.net/npm/flowise-embed/dist/web.js')
         const Chatbot = mod.default || mod.Chatbot || window.Chatbot
         if (!cancelled && Chatbot && !window.__flowise_inited) {
-          Chatbot.init({ chatflowid: '6d898019-f1bb-4c57-b28b-4f52ca40530e', apiHost: 'https://cloud.flowiseai.com' })
+          const container = document.getElementById('flowise-chatbot')
+          Chatbot.init({
+            chatflowid: '6d898019-f1bb-4c57-b28b-4f52ca40530e',
+            apiHost: 'https://cloud.flowiseai.com',
+            container,
+            theme: {
+              button: {
+                backgroundColor: 'transparent',
+                iconColor: 'transparent',
+                size: 'small',
+                right: -1000,
+                bottom: -1000
+              },
+              chatWindow: {
+                showTitle: false
+              }
+            }
+          })
           window.__flowise_inited = true
         }
       } catch {}
@@ -238,7 +255,8 @@ export default function Chat() {
             <div className="compose">
               <span className="compose-icon">{
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 17v3a1 1 0 0 0 1.4.9l3.5-1.6a2 2 0 0 1 .7-.2h8.4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M8 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-              }</span>
+              }
+              </span>
               <input className="compose-input" placeholder="اكتب طلبك أو مشكلتك هنا" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send() }} />
               <Button variant="primary" onClick={() => send()}>{lang === 'ar' ? 'إرسال' : 'Send'}</Button>
             </div>
@@ -248,6 +266,7 @@ export default function Chat() {
               <Button variant="secondary" onClick={() => quick('أحتاج تحديث بيانات الأحوال')}>{lang === 'ar' ? 'تحديث بيانات' : 'Update Data'}</Button>
               <Button variant="ghost" onClick={clearChat}>{lang === 'ar' ? 'مسح المحادثة' : 'Clear Chat'}</Button>
             </div>
+            <div id="flowise-chatbot" style={{ marginTop: 10 }} />
           </div>
         </div>
       </Card>
