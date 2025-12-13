@@ -64,8 +64,8 @@ export default function Header() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l7 4v6c0 5-7 8-7 8s-7-3-7-8V7l7-4Z" stroke="currentColor" strokeWidth="1.6"/></svg>
                 }</div>
                 <div className="brand-text">
-                  <div className="brand-title">{lang === 'ar' ? 'دليل أبشر' : 'Absher Guide'}</div>
-                  <div className="brand-sub">{lang === 'ar' ? 'حماية المواطنين من الاحتيال' : 'Protect citizens from scams'}</div>
+                  <div className="brand-title">{lang === 'ar' ? 'سَم — لخدمات أبشر' : 'SAM — Absher Services'}</div>
+                  <div className="brand-sub">{lang === 'ar' ? 'واجهة مبسطة تساعدك تنجز معاملتك بأمان' : 'Simplified interface to safely complete your service'}</div>
                 </div>
               </>
             )
