@@ -20,6 +20,16 @@ export default function Chat() {
   const [connStatus, setConnStatus] = useState('')
   const [connError, setConnError] = useState('')
   const bodyRef = useRef(null)
+  const recRef = useRef(null)
+  const [recording, setRecording] = useState(false)
+  const [recError, setRecError] = useState('')
+  const recTimerRef = useRef(null)
+  const [recSeconds, setRecSeconds] = useState(0)
+  const [recInterim, setRecInterim] = useState('')
+  const recStartGuardRef = useRef(false)
+  const mediaRecRef = useRef(null)
+  const mediaStreamRef = useRef(null)
+  const mediaChunksRef = useRef([])
   
 
   function getSamFee() {
@@ -114,6 +124,15 @@ export default function Chat() {
     setInput('')
     setStatus('')
     setTyping(true)
+    const r = analyze(txt)
+    setResult(r)
+    try { localStorage.setItem('last_message', txt) } catch {}
+    try { localStorage.setItem('last_analysis', JSON.stringify(r)) } catch {}
+    try {
+      const orders = JSON.parse(localStorage.getItem('orders') || '[]')
+      orders.push({ id: Date.now(), text: txt, time: new Date().toLocaleTimeString('ar-SA'), category: r.category, fees: r.fees, samFee: r.samFee, total: r.total, stage: 0 })
+      localStorage.setItem('orders', JSON.stringify(orders))
+    } catch {}
     try {
       const history = newMsgs.map(m => ({ role: m.from === 'user' ? 'userMessage' : 'apiMessage', content: m.text }))
       const res = await fetch('/api/flowise', {
@@ -137,10 +156,6 @@ export default function Chat() {
       setConnError(String(e?.message || 'Network Error'))
     }
     setTimeout(() => {
-      const r = analyze(txt)
-      setResult(r)
-      try { localStorage.setItem('last_message', txt) } catch {}
-      try { localStorage.setItem('last_analysis', JSON.stringify(r)) } catch {}
       const icon = r.category.includes('المرور') ? '🚘' : r.category.includes('الجوازات') ? '🛂' : '🏛️'
       const summary = `${icon} تم التحليل: ${r.category}. الإجمالي: ${r.total} ر.س`
       const withAssistant = [...newMsgs, { from: 'assistant', text: summary, time: new Date().toLocaleTimeString('ar-SA') }]
@@ -183,6 +198,177 @@ export default function Chat() {
   }
 
   
+
+  async function toggleMic() {
+    setRecError('')
+    try {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+      const secureOK = (window.isSecureContext || location.hostname === 'localhost')
+      if (!secureOK) {
+        setRecError(lang === 'ar' ? 'لا يعمل الميكروفون إلا عبر https أو localhost' : 'Microphone requires https or localhost')
+        return
+      }
+      const hasSR = !!SR
+      const hasMR = typeof MediaRecorder !== 'undefined'
+      if (!recording) {
+        if (!hasSR && !hasMR) {
+          setRecError(lang === 'ar' ? 'لا يدعم المتصفح تحويل الصوت أو تسجيله' : 'Browser does not support speech or recording')
+          return
+        }
+        if (!hasSR && hasMR) {
+          await startMediaRecorder()
+          return
+        }
+        try {
+          const s = await (navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? navigator.mediaDevices.getUserMedia({ audio: true }) : Promise.reject(new Error('no-media')))
+          try { s.getTracks().forEach(t => t.stop()) } catch {}
+        } catch (err) {
+          const msg = String(err && err.name ? err.name : err && err.message ? err.message : 'Mic permission error')
+          if (/Permission|NotAllowedError|not-allowed/i.test(msg)) {
+            setRecError(lang === 'ar' ? 'تم رفض إذن الميكروفون. رجاءً اسمح له من إعدادات الموقع.' : 'Microphone permission denied. Allow it in site settings.')
+          } else if (/NotFoundError|DevicesNotFound/i.test(msg)) {
+            setRecError(lang === 'ar' ? 'لم يتم العثور على جهاز صوت.' : 'No audio input device found.')
+          } else {
+            setRecError(msg)
+          }
+          return
+        }
+        const recog = new SR()
+        recRef.current = recog
+        try { recog.lang = lang === 'ar' ? 'ar-SA' : 'en-US' } catch {}
+        try { recog.interimResults = true } catch {}
+        try { recog.maxAlternatives = 1 } catch {}
+        try { recog.continuous = true } catch {}
+        setRecSeconds(0)
+        try { clearInterval(recTimerRef.current) } catch {}
+        recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000)
+        recStartGuardRef.current = true
+        try { recog.onstart = () => { recStartGuardRef.current = false } } catch {}
+        recog.onresult = (e) => {
+          try {
+            const res = e.results || []
+            let finalText = ''
+            for (let i = e.resultIndex || 0; i < res.length; i++) {
+              const r = res[i]
+              const t = (r && r[0] && r[0].transcript) || ''
+              if (!t) continue
+              if (r.isFinal) finalText += t + ' '
+              else setRecInterim(t)
+            }
+            if (finalText) {
+              setInput(v => (v ? v + ' ' : '') + finalText.trim())
+              setRecInterim('')
+            }
+          } catch {}
+        }
+        recog.onerror = (e) => {
+          const code = e && e.error ? e.error : ''
+          if (code === 'aborted' && recording && !recStartGuardRef.current) {
+            setTimeout(() => { try { recog.start() } catch {} }, 200)
+            return
+          }
+          if (code === 'not-allowed') {
+            setRecError(lang === 'ar' ? 'تم رفض إذن الميكروفون. فعّل الإذن ثم أعد المحاولة.' : 'Microphone permission denied. Enable it and retry.')
+          } else if (code === 'no-speech') {
+            setRecError(lang === 'ar' ? 'لم يتم التقاط صوت. تكلّم بوضوح قريبًا من الميكروفون.' : 'No speech detected. Speak clearly near the mic.')
+          } else {
+            setRecError(String(code || 'Speech error'))
+          }
+          setRecording(false)
+          try { clearInterval(recTimerRef.current) } catch {}
+          setRecInterim('')
+        }
+        recog.onend = () => {
+          if (recording) {
+            setTimeout(() => { try { recog.start() } catch {} }, 200)
+            return
+          }
+          setRecording(false)
+          try { clearInterval(recTimerRef.current) } catch {}
+          setRecInterim('')
+        }
+        try {
+          recog.start()
+          setRecording(true)
+        } catch (err) {
+          setRecError(String(err && err.message ? err.message : 'Mic error'))
+          setRecording(false)
+          try { clearInterval(recTimerRef.current) } catch {}
+          setRecInterim('')
+        }
+      } else {
+        if (!hasSR && hasMR) {
+          await stopMediaRecorder()
+          return
+        }
+        try { recRef.current && recRef.current.stop() } catch {}
+        setRecording(false)
+        try { clearInterval(recTimerRef.current) } catch {}
+        setRecInterim('')
+        setRecSeconds(0)
+      }
+    } catch (e) {
+      setRecError(String(e && e.message ? e.message : 'Mic error'))
+      setRecording(false)
+    }
+  }
+
+  async function blobToBase64(blob) {
+    const buffer = await blob.arrayBuffer()
+    let binary = ''
+    const bytes = new Uint8Array(buffer)
+    const len = bytes.byteLength
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i])
+    return btoa(binary)
+  }
+
+  async function startMediaRecorder() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      mediaStreamRef.current = stream
+      const rec = new MediaRecorder(stream)
+      mediaRecRef.current = rec
+      mediaChunksRef.current = []
+      setRecSeconds(0)
+      try { clearInterval(recTimerRef.current) } catch {}
+      recTimerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000)
+      rec.ondataavailable = (e) => { try { if (e.data && e.data.size > 0) mediaChunksRef.current.push(e.data) } catch {} }
+      rec.onerror = (e) => { setRecError(String(e?.name || e?.message || 'Recorder error')) }
+      rec.onstop = async () => {
+        try { clearInterval(recTimerRef.current) } catch {}
+        setRecording(false)
+        setRecInterim('')
+        try {
+          const blob = new Blob(mediaChunksRef.current, { type: 'audio/webm' })
+          mediaChunksRef.current = []
+          const b64 = await blobToBase64(blob)
+          const res = await fetch('/api/stt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audio: b64, mime: blob.type }) })
+          if (res.ok) {
+            const j = await res.json()
+            const tr = j && j.text || ''
+            if (tr) { setInput(tr); send(tr) }
+          } else {
+            const errText = await res.text().catch(() => '')
+            setRecError(errText || 'STT error')
+          }
+        } catch (err) {
+          setRecError(String(err && err.message ? err.message : 'STT error'))
+        }
+        try { mediaStreamRef.current && mediaStreamRef.current.getTracks().forEach(t => t.stop()) } catch {}
+        mediaStreamRef.current = null
+        mediaRecRef.current = null
+      }
+      rec.start(250)
+      setRecording(true)
+    } catch (err) {
+      setRecError(String(err && err.message ? err.message : 'Mic error'))
+      setRecording(false)
+    }
+  }
+
+  async function stopMediaRecorder() {
+    try { mediaRecRef.current && mediaRecRef.current.stop() } catch {}
+  }
 
   async function testConnection() {
     setConnStatus('جاري الاختبار...')
@@ -252,14 +438,10 @@ export default function Chat() {
             )}
           </div>
           <div className="chat-footer">
-            <div className="compose">
-              <span className="compose-icon">{
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 17v3a1 1 0 0 0 1.4.9l3.5-1.6a2 2 0 0 1 .7-.2h8.4a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M8 12h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-              }
-              </span>
+          <div className="compose">
               <input className="compose-input" placeholder="اكتب طلبك أو مشكلتك هنا" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send() }} />
               <Button variant="primary" onClick={() => send()}>{lang === 'ar' ? 'إرسال' : 'Send'}</Button>
-            </div>
+          </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={() => quick('أرغب في تجديد الإقامة')}>{lang === 'ar' ? 'تجديد إقامة' : 'Residence Renewal'}</Button>
               <Button variant="secondary" onClick={() => quick('لدي مخالفة مرورية وأريد السداد')}>{lang === 'ar' ? 'تسديد مخالفة' : 'Pay Violation'}</Button>

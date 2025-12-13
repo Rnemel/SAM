@@ -16,7 +16,19 @@ export default function Orders() {
     if (!u) navigate('/login')
     try { setUser(JSON.parse(u)) } catch {}
     try {
-      const saved = JSON.parse(localStorage.getItem('orders') || '[]')
+      let saved = JSON.parse(localStorage.getItem('orders') || '[]')
+      if (!Array.isArray(saved)) saved = []
+      if (saved.length === 0) {
+        try {
+          const last = JSON.parse(localStorage.getItem('last_analysis') || 'null')
+          const msg = localStorage.getItem('last_message') || ''
+          if (last && msg) {
+            const order = { id: Date.now(), text: msg, time: new Date().toLocaleTimeString('ar-SA'), category: last.category, fees: last.fees || [], samFee: last.samFee, total: last.total, stage: 0 }
+            saved = [order]
+            localStorage.setItem('orders', JSON.stringify(saved))
+          }
+        } catch {}
+      }
       setItems(saved.reverse())
     } catch {}
     function onLang() { try { setLang(localStorage.getItem('lang') || 'ar') } catch {} }
@@ -46,6 +58,28 @@ export default function Orders() {
               <div>
                 <div style={{ fontWeight: 700 }}>{it.text}</div>
                 <div className="hero-sub" style={{ marginTop: 4 }}>{it.time}</div>
+                <div className="grid" style={{ marginTop: 8 }}>
+                  <div className="card">
+                    <div className="hero-sub">{lang === 'ar' ? 'الرسوم الحكومية' : 'Government Fees'}</div>
+                    <div className="grid">
+                      {(it.fees || []).map((f, idx) => (
+                        <div key={idx} className="grid" style={{ gridTemplateColumns: '1fr auto auto', alignItems: 'center' }}>
+                          <div>{f.type}</div>
+                          <div className="hero-sub">{f.authority}</div>
+                          <div style={{ fontWeight: 700 }}>{f.amount} ر.س</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid" style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+                    <div className="hero-sub">{lang === 'ar' ? 'سعر خدمة سَم' : 'SAM Service Fee'}</div>
+                    <div style={{ fontWeight: 700 }}>{it.samFee} ر.س</div>
+                  </div>
+                  <div className="grid" style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
+                    <div>{lang === 'ar' ? 'الإجمالي' : 'Total'}</div>
+                    <div style={{ fontWeight: 800, color: 'var(--color-primary)' }}>{it.total} ر.س</div>
+                  </div>
+                </div>
                 <div className="steps" style={{ marginTop: 8 }}>
                   {statuses.map((label, idx) => (
                     <div key={label} className={`step ${idx === (it.stage ?? 0) ? 'step-active' : idx < (it.stage ?? 0) ? 'step-done' : ''}`}>
@@ -55,8 +89,18 @@ export default function Orders() {
                     </div>
                   ))}
                 </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <Button variant="primary" onClick={() => {
+                    try {
+                      const data = { category: it.category, fees: it.fees || [], samFee: it.samFee, total: it.total }
+                      localStorage.setItem('last_analysis', JSON.stringify(data))
+                      localStorage.setItem('last_message', it.text || '')
+                    } catch {}
+                    navigate('/pay')
+                  }}>{lang === 'ar' ? 'الدفع الآن' : 'Pay Now'}</Button>
+                  <Button variant="secondary" onClick={goChat}>{lang === 'ar' ? 'متابعة بالشات' : 'Continue in Chat'}</Button>
+                </div>
               </div>
-              <Button variant="secondary" onClick={goChat}>{lang === 'ar' ? 'متابعة بالشات' : 'Continue in Chat'}</Button>
             </div>
           ))}
         </div>

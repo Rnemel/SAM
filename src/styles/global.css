@@ -275,10 +275,10 @@ input.card:focus {
   border: 1px solid rgba(237,123,48,0.35);
 }
 .chat-input { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
-.compose { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid #e6eae8; border-radius: 999px; background: #fff; box-shadow: var(--shadow-sm); }
+.compose { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid #e6eae8; border-radius: 999px; background: #fff; box-shadow: var(--shadow-sm); }
 .compose:hover { box-shadow: var(--shadow-md); }
 .compose:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(69,73,45,0.20); }
-.compose-icon { display: inline-flex; width: 20px; height: 20px; color: var(--color-muted); }
+.compose-icon { display: none; }
 .compose-input { border: 0; outline: none; font-size: 15px; padding: 8px; }
 .compose .btn-primary { border-radius: 999px; padding: 10px 14px; }
 

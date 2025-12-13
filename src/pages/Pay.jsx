@@ -40,15 +40,25 @@ export default function Pay() {
     try {
       const orders = JSON.parse(localStorage.getItem('orders') || '[]')
       const lastMessage = localStorage.getItem('last_message') || ''
-      const now = new Date().toLocaleTimeString('ar-SA')
-      const order = {
-        id: Date.now(),
-        text: lastMessage || (data?.category || 'طلب خدمة'),
-        time: now,
-        total: data?.total,
-        stage: 0
+      let updated = false
+      for (let i = 0; i < orders.length; i++) {
+        if ((orders[i].text || '') === lastMessage) {
+          orders[i].stage = Math.max(orders[i].stage || 0, 1)
+          updated = true
+          break
+        }
       }
-      orders.push(order)
+      if (!updated) {
+        const now = new Date().toLocaleTimeString('ar-SA')
+        const order = {
+          id: Date.now(),
+          text: lastMessage || (data?.category || 'طلب خدمة'),
+          time: now,
+          total: data?.total,
+          stage: 1
+        }
+        orders.push(order)
+      }
       localStorage.setItem('orders', JSON.stringify(orders))
     } catch {}
     try { window.dispatchEvent(new CustomEvent('sam-payment-confirmed')) } catch {}
